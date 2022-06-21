@@ -1,3 +1,6 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 /*
@@ -13,8 +16,76 @@ public class App {
     }
 
     public String bestCharge(List<String> inputs) {
-        //TODO: write code here
+        String str1="============= Order details =============\n";
 
-        return null;
+        List<Item> itemList=itemRepository.findAll();
+        List<SalesPromotion> ProList=salesPromotionRepository.findAll();
+
+        HashMap<String, Integer> m=new HashMap<>();
+        HashSet<String> RelatedItemsMap=new HashSet<>();
+
+        //获取半价优惠名单
+        SalesPromotion halfSalesPro=null;
+        for(SalesPromotion salesPro:ProList){
+            if(salesPro.getType().equals("50%_DISCOUNT_ON_SPECIFIED_ITEMS")){
+                halfSalesPro=salesPro;
+                RelatedItemsMap.addAll(salesPro.getRelatedItems());
+            }
+        }
+
+        //获取用户点单
+        for(String s:inputs){
+            //example:"ITEM0001 x 1"
+            String[] tmp=s.split(" ");
+            m.putIfAbsent(tmp[0],Integer.parseInt(tmp[2]));
+        }
+
+
+        double sum=0;
+        String str2="";
+
+        HashMap<Item,Integer> halfList=new HashMap<>();
+        for(Item item:itemList){
+            int n=0;
+            if((n=m.getOrDefault(item.getId(),0))!=0){
+                str2+=String.format("%s x %d = %.0f yuan\n",item.getName(),n,n*item.getPrice());
+                if(RelatedItemsMap.contains(item.getId())){
+                    halfList.put(item,n);
+                }
+                sum+=item.getPrice()*n;
+            }
+        }
+
+        String str3="Promotion used:\n";
+        boolean hasPro=false;
+        boolean chooseHalf=false;
+        if(!halfList.isEmpty()){
+            hasPro=true;
+            double savingMoney=0;
+            List<String> tmp=new ArrayList<>();
+            for(Item i:halfList.keySet()){
+                tmp.add(i.getName());
+                savingMoney+=i.getPrice()*halfList.get(i)/2;
+            }
+            if(savingMoney>6||sum<30){
+            str3+=halfSalesPro.getDisplayName()+" (";
+            str3+=String.join(" and ",tmp)+String.format("), saving %.0f yuan\n",savingMoney);
+            sum-=savingMoney;
+            chooseHalf=true;
+            }
+        }
+
+        if(sum>=30&&chooseHalf==false){
+            sum-=6;
+            hasPro=true;
+            str3+="Deduct 6 yuan when the order reaches 30 yuan, saving 6 yuan\n";
+        }
+
+        String res=str1+str2+"-----------------------------------\n";
+        if(hasPro){
+            res+=str3+"-----------------------------------\n";
+        }
+        res+=String.format("Total: %.0f yuan\n===================================",sum);
+        return res;
     }
 }
